@@ -1,113 +1,207 @@
-import Image from 'next/image'
+"use client"
 
-export default function Home() {
+import type React from "react"
+
+import { useState, useRef, type MouseEvent } from "react"
+import { AnimatePresence } from "framer-motion"
+import TaskBlob from "@/components/task-blob"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
+
+// Define the type for a single task
+type Task = {
+  id: number
+  label: string
+  size: number // Diameter of the blob
+  color: string
+  x: number // X position relative to container
+  y: number // Y position relative to container
+}
+
+// Standard size for all balls
+const BALL_SIZE = 200
+
+// Initial set of tasks to populate the canvas
+const initialTasks: Task[] = [
+  { id: 1, label: "Green", size: BALL_SIZE, color: "#4ade80", x: 300, y: 300 },
+  { id: 2, label: "Blue", size: BALL_SIZE, color: "#3b82f6", x: 600, y: 300 },
+  { id: 3, label: "Grey", size: BALL_SIZE, color: "#6b7280", x: 900, y: 300 },
+]
+
+// Yellow color for new balls
+const NEW_BALL_COLOR = "#fbbf24"
+
+export default function BlobbyTrackerPage() {
+  const [tasks, setTasks] = useState<Task[]>(initialTasks)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // State for the rename prompt
+  const [showRenamePrompt, setShowRenamePrompt] = useState(false)
+  const [renameBlobId, setRenameBlobId] = useState<number | null>(null)
+  const [renameBlobLabel, setRenameBlobLabel] = useState("")
+  const [renameBlobPosition, setRenameBlobPosition] = useState<{ x: number; y: number } | null>(null)
+
+  // State for tracking if a ball is being dragged over the delete button
+  const [isDragOverDelete, setIsDragOverDelete] = useState(false)
+  const [draggedBallId, setDraggedBallId] = useState<number | null>(null)
+
+  // This function handles updating a task's position after being dragged.
+  const handleDragEnd = (id: number, newX: number, newY: number) => {
+    if (isDragOverDelete) {
+      // Delete the ball if it was dropped on the delete button
+      setTasks((currentTasks) => currentTasks.filter((task) => task.id !== id))
+    } else {
+      // Update position normally
+      setTasks((currentTasks) => currentTasks.map((task) => (task.id === id ? { ...task, x: newX, y: newY } : task)))
+    }
+    setIsDragOverDelete(false)
+    setDraggedBallId(null)
+  }
+
+
+  // This function adds a new task blob to the canvas.
+  const addNewTask = (e: MouseEvent<HTMLButtonElement>) => {
+    const newId = Date.now()
+    const randomColor = NEW_BALL_COLOR
+    const defaultSize = BALL_SIZE
+
+    // Position new blob in the center of the container
+    const containerWidth = containerRef.current?.clientWidth || window.innerWidth
+    const containerHeight = containerRef.current?.clientHeight || window.innerHeight
+
+    const newTask: Task = {
+      id: newId,
+      label: "New Task",
+      size: defaultSize,
+      color: randomColor,
+      x: containerWidth / 2 - defaultSize / 2,
+      y: containerHeight / 2 - defaultSize / 2,
+    }
+    setTasks((currentTasks) => [...currentTasks, newTask])
+  }
+
+  // Handler for when a rename is requested (right-click)
+  const handleRenameRequest = (id: number, currentLabel: string, position: { x: number; y: number }) => {
+    setRenameBlobId(id)
+    setRenameBlobLabel(currentLabel)
+    setRenameBlobPosition(position)
+    setShowRenamePrompt(true)
+  }
+
+  // Handler for submitting the rename form
+  const handleRenameSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (renameBlobId !== null) {
+      setTasks((currentTasks) =>
+        currentTasks.map((task) => (task.id === renameBlobId ? { ...task, label: renameBlobLabel } : task)),
+      )
+    }
+    setShowRenamePrompt(false)
+    setRenameBlobId(null)
+    setRenameBlobLabel("")
+    setRenameBlobPosition(null)
+  }
+
+  // Handler for canceling the rename prompt
+  const handleRenameCancel = () => {
+    setShowRenamePrompt(false)
+    setRenameBlobId(null)
+    setRenameBlobLabel("")
+    setRenameBlobPosition(null)
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
+    <div className="relative w-screen h-screen bg-gray-900 overflow-hidden">
+      {/* This is the main container where task balls live */}
+      <div ref={containerRef} className="relative w-full h-full">
+        <AnimatePresence>
+          {tasks.map((task) => (
+            <TaskBlob
+              key={task.id}
+              id={task.id}
+              label={task.label}
+              size={task.size}
+              color={task.color}
+              initialPosition={{ x: task.x, y: task.y }}
+              dragConstraintsRef={containerRef}
+              onDragEnd={handleDragEnd}
+              onDragStart={() => setDraggedBallId(task.id)}
+              onDrag={(newX: number, newY: number) => {
+                // Check if dragging over delete button (top-right area)
+                const buttonArea = { x: window.innerWidth - 100, y: 0, width: 100, height: 100 }
+                const isOverButton = newX > buttonArea.x && newY < buttonArea.height
+                setIsDragOverDelete(isOverButton)
+              }}
+              onRenameRequest={handleRenameRequest}
             />
-          </a>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* UI Controls are kept outside the filtered container to prevent them from being distorted */}
+      <div className="absolute top-4 right-4 z-10">
+        <Button
+          onClick={addNewTask}
+          size="lg"
+          className={`rounded-full p-4 shadow-lg text-white transition-colors ${
+            isDragOverDelete 
+              ? "bg-red-500 hover:bg-red-600" 
+              : "bg-blue-500 hover:bg-blue-600"
+          }`}
+        >
+          {isDragOverDelete ? (
+            <span className="w-6 h-6 text-2xl font-bold">×</span>
+          ) : (
+            <Plus className="w-6 h-6" />
+          )}
+          <span className="sr-only">{isDragOverDelete ? "Delete Task" : "Add New Task"}</span>
+        </Button>
+      </div>
+      <div className="absolute bottom-4 left-4 text-white/50 font-sans text-sm z-10">
+        <p>
+          Drag the balls around. Right-click to rename. Add new ones with the '+' button. Drag to the '+' to delete.
+        </p>
+      </div>
+
+      {/* Rename Prompt */}
+      {showRenamePrompt && renameBlobPosition && (
+        <div
+          className="absolute bg-gray-700 p-4 rounded-lg shadow-xl z-50"
+          style={{
+            left: renameBlobPosition.x,
+            top: renameBlobPosition.y,
+            transform: "translate(-50%, -50%)", // Center the prompt on the click point
+          }}
+        >
+          <form onSubmit={handleRenameSubmit} className="flex flex-col gap-2">
+            <input
+              type="text"
+              value={renameBlobLabel}
+              onChange={(e) => setRenameBlobLabel(e.target.value)}
+              className="p-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="New name"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  handleRenameCancel()
+                }
+              }}
+            />
+            <div className="flex gap-2">
+              <Button type="submit" className="flex-1 bg-blue-500 hover:bg-blue-600 text-white">
+                Rename
+              </Button>
+              <Button
+                type="button"
+                onClick={handleRenameCancel}
+                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white"
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
         </div>
-      </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+      )}
+    </div>
   )
 }
