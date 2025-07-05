@@ -303,11 +303,12 @@ export default function BlobbyTrackerPage() {
       {/* Gooey filter for blob effects */}
       <GooeyFilter />
 
-      {/* Dotted background pattern at the lowest z-index */}
-      <div className="absolute inset-0 -z-20 w-full h-full bg-dot-pattern" />
-      {/* Background: Completely different layouts for desktop vs mobile */}
+      {/* Dotted background pattern for desktop only */}
+      <div className="hidden md:block absolute inset-0 -z-20 w-full h-full bg-dot-pattern" />
+
+      {/* Background: Desktop circles only */}
       <div className="pointer-events-none absolute inset-0 -z-10 w-full h-full">
-        {/* Desktop: 3 circles - green on left, blue in center, gray on right */}
+        {/* Desktop: 4 circles - green on left, blue in center, white top right, gray bottom right */}
         <div className="hidden md:block">
           {/* Green circle on the left (smaller, falling off the edge) */}
           <div className="absolute left-0 top-1/2 w-[480px] h-[480px] rounded-full bg-zone-mint transform -translate-x-1/2 -translate-y-1/2" />
@@ -317,27 +318,18 @@ export default function BlobbyTrackerPage() {
             <div className="w-[312px] h-[312px] rounded-full bg-blue-400" />
           </div>
 
-          {/* Gray circle on the right (half visible) */}
-          <div className="absolute right-0 top-1/2 w-[480px] h-[480px] rounded-full bg-zone-gray transform translate-x-1/2 -translate-y-1/2" />
-        </div>
+          {/* Light yellow circle at top right for shipped items (more visible) */}
+          <div className="absolute right-0 top-0 w-[480px] h-[480px] rounded-full bg-yellow-100 transform translate-x-1/3 -translate-y-1/4" />
 
-        {/* Mobile: Card-based layout with sections */}
-        <div className="block md:hidden">
-          {/* Header section - Green */}
-          <div className="absolute top-0 left-0 w-full h-32 bg-zone-mint rounded-b-3xl" />
-
-          {/* Main content area - Blue with rounded corners */}
-          <div className="absolute top-24 left-4 right-4 bottom-32 bg-zone-sky rounded-3xl shadow-lg" />
-
-          {/* Footer section - Gray */}
-          <div className="absolute bottom-0 left-0 w-full h-32 bg-zone-gray rounded-t-3xl" />
+          {/* Gray circle at bottom right (more visible) */}
+          <div className="absolute right-0 bottom-0 w-[480px] h-[480px] rounded-full bg-zone-gray transform translate-x-1/3 translate-y-1/4" />
         </div>
       </div>
 
-      {/* This is the main container where task balls live - Mobile optimized */}
+      {/* Desktop: Draggable balls */}
       <div
         ref={containerRef}
-        className="relative w-full h-full md:w-full md:h-full"
+        className="hidden md:block relative w-full h-full"
       >
         <AnimatePresence>
           {tasks.map((task) => (
@@ -355,6 +347,155 @@ export default function BlobbyTrackerPage() {
             />
           ))}
         </AnimatePresence>
+      </div>
+
+      {/* Mobile: List view organized by zones */}
+      <div className="block md:hidden relative w-full h-full overflow-y-auto">
+        <div className="p-4 space-y-6">
+          {/* Green Zone */}
+          <div className="bg-zone-mint rounded-lg p-4">
+            <h2 className="text-lg font-bold text-gray-800 mb-3">Green Zone</h2>
+            <div className="space-y-2">
+              {tasks
+                .filter((task, index) => index % 4 === 0)
+                .map((task) => (
+                  <div
+                    key={task.id}
+                    className="bg-black text-white p-3 rounded-lg flex items-center justify-between"
+                  >
+                    <span className="font-chewy text-lg">{task.label}</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          handleRenameRequest(task.id, task.label, {
+                            x: 200,
+                            y: 200,
+                          })
+                        }
+                        className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTask(task.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white p-1 rounded"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Blue Zone */}
+          <div className="bg-zone-sky rounded-lg p-4">
+            <h2 className="text-lg font-bold text-gray-800 mb-3">Blue Zone</h2>
+            <div className="space-y-2">
+              {tasks
+                .filter((task, index) => index % 4 === 1)
+                .map((task) => (
+                  <div
+                    key={task.id}
+                    className="bg-black text-white p-3 rounded-lg flex items-center justify-between"
+                  >
+                    <span className="font-chewy text-lg">{task.label}</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          handleRenameRequest(task.id, task.label, {
+                            x: 200,
+                            y: 200,
+                          })
+                        }
+                        className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTask(task.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white p-1 rounded"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Yellow Zone - Shipped */}
+          <div className="bg-yellow-100 rounded-lg p-4">
+            <h2 className="text-lg font-bold text-gray-800 mb-3">Shipped</h2>
+            <div className="space-y-2">
+              {tasks
+                .filter((task, index) => index % 4 === 2)
+                .map((task) => (
+                  <div
+                    key={task.id}
+                    className="bg-black text-white p-3 rounded-lg flex items-center justify-between"
+                  >
+                    <span className="font-chewy text-lg">{task.label}</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          handleRenameRequest(task.id, task.label, {
+                            x: 200,
+                            y: 200,
+                          })
+                        }
+                        className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTask(task.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white p-1 rounded"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Gray Zone */}
+          <div className="bg-zone-gray rounded-lg p-4">
+            <h2 className="text-lg font-bold text-gray-800 mb-3">Gray Zone</h2>
+            <div className="space-y-2">
+              {tasks
+                .filter((task, index) => index % 4 === 3)
+                .map((task) => (
+                  <div
+                    key={task.id}
+                    className="bg-black text-white p-3 rounded-lg flex items-center justify-between"
+                  >
+                    <span className="font-chewy text-lg">{task.label}</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          handleRenameRequest(task.id, task.label, {
+                            x: 200,
+                            y: 200,
+                          })
+                        }
+                        className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTask(task.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white p-1 rounded"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Circular Create New Button - Different positioning for mobile */}
