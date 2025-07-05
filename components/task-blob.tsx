@@ -1,9 +1,9 @@
 "use client";
 
 import type React from "react";
-
 import { motion, useMotionValue, type PanInfo } from "framer-motion";
 import type { RefObject } from "react";
+import { Trash2, Edit3 } from "lucide-react";
 
 type TaskBlobProps = {
   id: number;
@@ -18,6 +18,7 @@ type TaskBlobProps = {
     currentLabel: string,
     position: { x: number; y: number }
   ) => void;
+  onDeleteRequest: (id: number) => void;
 };
 
 /**
@@ -33,6 +34,7 @@ export default function TaskBlob({
   dragConstraintsRef,
   onDragEnd,
   onRenameRequest,
+  onDeleteRequest,
 }: TaskBlobProps) {
   // These motion values track the blob's position, allowing Framer Motion to control transforms.
   const x = useMotionValue(initialPosition.x);
@@ -48,11 +50,25 @@ export default function TaskBlob({
     onDragEnd(id, currentX, currentY);
   };
 
-  // Handle right-click to bring up rename prompt
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent default browser context menu
-    // Pass the current position of the blob to the parent for prompt placement
-    onRenameRequest(id, label, { x: x.get(), y: y.get() });
+  // Handle edit button click
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    console.log("EDIT BUTTON CLICKED - ID:", id, "Label:", label);
+    // Simple position - just use screen coordinates
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dialogX = rect.left + rect.width / 2;
+    const dialogY = rect.top + rect.height / 2;
+    console.log("Dialog position:", dialogX, dialogY);
+    onRenameRequest(id, label, { x: dialogX, y: dialogY });
+  };
+
+  // Handle delete button click
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    console.log("DELETE BUTTON CLICKED - ID:", id, "Label:", label);
+    onDeleteRequest(id);
   };
 
   return (
@@ -63,7 +79,6 @@ export default function TaskBlob({
       dragMomentum={false} // Disable "throwing" momentum
       dragElastic={0.2} // Controls the "bounciness" when hitting constraints
       onDragEnd={handleDragEnd}
-      onContextMenu={handleContextMenu} // Handle right-click
       // Initial and exit animations for when blobs are added/removed
       initial={{
         scale: 0,
@@ -82,7 +97,7 @@ export default function TaskBlob({
       // Animation while dragging
       whileDrag={{ scale: 1.1, zIndex: 50, cursor: "grabbing" }}
       // Styling and positioning
-      className="absolute flex items-center justify-center rounded-full cursor-grab select-none"
+      className="absolute flex items-center justify-center rounded-full cursor-grab select-none group"
       style={{
         width: size,
         height: size,
@@ -92,6 +107,22 @@ export default function TaskBlob({
         y,
       }}
     >
+      {/* Edit button - appears on hover */}
+      <button
+        onClick={handleEditClick}
+        className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+      >
+        <Edit3 size={12} />
+      </button>
+
+      {/* Delete button - appears on hover */}
+      <button
+        onClick={handleDeleteClick}
+        className="absolute -top-2 -left-2 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+      >
+        <Trash2 size={12} />
+      </button>
+
       {/* The label is inside the blob, so it will be slightly affected by the filter.
           For a "Sunday project" this is acceptable as per your notes. */}
       <span

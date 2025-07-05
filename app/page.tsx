@@ -5,8 +5,9 @@ import type React from "react";
 import { useState, useRef, useEffect, type MouseEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import TaskBlob from "@/components/task-blob";
+import GooeyFilter from "@/components/gooey-filter";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 // Define the type for a single task
 type Task = {
@@ -115,6 +116,18 @@ export default function BlobbyTrackerPage() {
   // Ref for rename input
   const renameInputRef = useRef<HTMLInputElement>(null);
 
+  // State for create button rename prompt
+  const [showCreateRenamePrompt, setShowCreateRenamePrompt] = useState(false);
+  const [createRenameLabel, setCreateRenameLabel] = useState("Project");
+  const [pendingNewTask, setPendingNewTask] = useState<Task | null>(null);
+
+  // State for create button context menu
+  const [showCreateContextMenu, setShowCreateContextMenu] = useState(false);
+  const [createContextMenuPosition, setCreateContextMenuPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
   // Save to localStorage whenever tasks change
   const saveToLocalStorage = (newTasks: Task[]) => {
     if (isClient) {
@@ -142,12 +155,14 @@ export default function BlobbyTrackerPage() {
   const handleCreateNewBall = () => {
     const newId = Date.now();
 
-    // Position new ball in center of container
+    // Position new ball in the left green circle area
     const containerWidth =
       containerRef.current?.clientWidth || window.innerWidth;
     const containerHeight =
       containerRef.current?.clientHeight || window.innerHeight;
-    const newX = containerWidth / 2 - BALL_SIZE / 2;
+
+    // Position in left quarter of screen (green circle area)
+    const newX = containerWidth / 4 - BALL_SIZE / 2;
     const newY = containerHeight / 2 - BALL_SIZE / 2;
 
     const newTask: Task = {
@@ -158,32 +173,68 @@ export default function BlobbyTrackerPage() {
       x: newX,
       y: newY,
     };
-    const newTasks = [...tasks, newTask];
-    setTasks(newTasks);
-    saveToLocalStorage(newTasks);
 
-    // Immediately ask for name
-    setTimeout(() => {
-      handleRenameRequest(newId, "Project", {
-        x: newX + BALL_SIZE / 2,
-        y: newY + BALL_SIZE / 2,
-      });
-    }, 100);
+    // Store the pending task and show rename prompt
+    setPendingNewTask(newTask);
+    setCreateRenameLabel("Project");
+    setShowCreateRenamePrompt(true);
   };
 
-  // Handler for when a rename is requested (right-click)
+  // Handle create button right-click
+  const handleCreateButtonContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setCreateContextMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowCreateContextMenu(true);
+  };
+
+  // Handle create rename submit
+  const handleCreateRenameSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pendingNewTask) {
+      const finalTask = { ...pendingNewTask, label: createRenameLabel };
+      const newTasks = [...tasks, finalTask];
+      setTasks(newTasks);
+      saveToLocalStorage(newTasks);
+    }
+    setShowCreateRenamePrompt(false);
+    setPendingNewTask(null);
+    setCreateRenameLabel("Project");
+  };
+
+  // Handle create rename cancel
+  const handleCreateRenameCancel = () => {
+    setShowCreateRenamePrompt(false);
+    setPendingNewTask(null);
+    setCreateRenameLabel("Project");
+  };
+
+  // Handle deleting a task
+  const handleDeleteTask = (id: number) => {
+    const newTasks = tasks.filter((task) => task.id !== id);
+    setTasks(newTasks);
+    saveToLocalStorage(newTasks);
+    setShowRenamePrompt(false);
+    setRenameBlobId(null);
+    setRenameBlobLabel("");
+    setRenameBlobPosition(null);
+  };
+
+  // Handler for when a rename is requested (right-click on existing blob)
   const handleRenameRequest = (
     id: number,
     currentLabel: string,
     position: { x: number; y: number }
   ) => {
+    console.log("RENAME REQUEST RECEIVED - ID:", id, "Position:", position);
+    console.log("Setting showRenamePrompt to true");
     setRenameBlobId(id);
     setRenameBlobLabel(currentLabel);
     setRenameBlobPosition(position);
     setShowRenamePrompt(true);
+    console.log("State should be updated now");
   };
 
-  // Handler for submitting the rename form
+  // Handler for submitting the rename form (for existing blobs)
   const handleRenameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (renameBlobId !== null) {
@@ -199,13 +250,26 @@ export default function BlobbyTrackerPage() {
     setRenameBlobPosition(null);
   };
 
-  // Handler for canceling the rename prompt
+  // Handler for canceling the rename prompt (for existing blobs)
   const handleRenameCancel = () => {
     setShowRenamePrompt(false);
     setRenameBlobId(null);
     setRenameBlobLabel("");
     setRenameBlobPosition(null);
   };
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowCreateContextMenu(false);
+      setCreateContextMenuPosition(null);
+    };
+
+    if (showCreateContextMenu) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [showCreateContextMenu]);
 
   // Select all text in rename input when prompt is shown
   useEffect(() => {
@@ -214,8 +278,21 @@ export default function BlobbyTrackerPage() {
     }
   }, [showRenamePrompt]);
 
+  // Debug state changes
+  useEffect(() => {
+    console.log(
+      "State change - showRenamePrompt:",
+      showRenamePrompt,
+      "position:",
+      renameBlobPosition
+    );
+  }, [showRenamePrompt, renameBlobPosition]);
+
   return (
     <div className="relative w-screen h-screen overflow-hidden">
+      {/* Gooey filter for blob effects */}
+      <GooeyFilter />
+
       {/* Dotted background pattern at the lowest z-index */}
       <div className="absolute inset-0 -z-20 w-full h-full bg-dot-pattern" />
       {/* Background: 3 circles - green on left, blue in center, gray on right */}
@@ -246,31 +323,89 @@ export default function BlobbyTrackerPage() {
               dragConstraintsRef={containerRef}
               onDragEnd={handleDragEnd}
               onRenameRequest={handleRenameRequest}
+              onDeleteRequest={handleDeleteTask}
             />
           ))}
         </AnimatePresence>
       </div>
 
-      {/* Simple Create New Button */}
-      <div className="absolute top-4 right-4 z-10">
-        <Button
+      {/* Circular Create New Button */}
+      <div className="absolute top-4 left-4 z-10">
+        <button
           onClick={handleCreateNewBall}
-          className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded shadow"
+          onContextMenu={handleCreateButtonContextMenu}
+          className="w-12 h-12 rounded-full bg-transparent hover:bg-gray-100 text-black border-2 border-black p-0 flex items-center justify-center cursor-pointer"
         >
-          Create new
-        </Button>
+          <Plus size={20} />
+        </button>
       </div>
 
-      {/* Clear All Button */}
-      <div className="absolute top-4 left-4 z-10">
-        <Button
-          onClick={() => setShowClearConfirm(true)}
-          variant="destructive"
-          className="bg-red-600 hover:bg-red-700 text-white"
+      {/* Create Button Context Menu */}
+      {showCreateContextMenu && createContextMenuPosition && (
+        <div
+          className="absolute bg-gray-800 rounded-lg shadow-xl z-50 py-2 min-w-32"
+          style={{
+            left: createContextMenuPosition.x,
+            top: createContextMenuPosition.y,
+          }}
         >
-          Clear all
-        </Button>
-      </div>
+          <button
+            onClick={() => {
+              setShowCreateContextMenu(false);
+              setShowClearConfirm(true);
+            }}
+            className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 transition-colors"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
+      {/* Create Button Rename Prompt */}
+      {showCreateRenamePrompt && (
+        <div
+          className="absolute bg-gray-700 p-4 rounded-lg shadow-xl z-50"
+          style={{
+            left: 80, // To the right of the button (button is 48px + 16px margin + 16px spacing)
+            top: 20, // Aligned with the button
+          }}
+        >
+          <form
+            onSubmit={handleCreateRenameSubmit}
+            className="flex flex-col gap-2"
+          >
+            <input
+              type="text"
+              value={createRenameLabel}
+              onChange={(e) => setCreateRenameLabel(e.target.value)}
+              className="p-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Project name"
+              autoFocus
+              onFocus={(e) => e.target.select()}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  handleCreateRenameCancel();
+                }
+              }}
+            />
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+              >
+                Create
+              </Button>
+              <Button
+                type="button"
+                onClick={handleCreateRenameCancel}
+                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white"
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Clear All Confirmation Dialog */}
       {showClearConfirm && (
@@ -312,7 +447,18 @@ export default function BlobbyTrackerPage() {
             top: renameBlobPosition.y,
             transform: "translate(-50%, -50%)", // Center the prompt on the click point
           }}
+          onLoad={() => console.log("Rename dialog rendered!")}
         >
+          {/* Trash icon in bottom right */}
+          <button
+            onClick={() =>
+              renameBlobId !== null && handleDeleteTask(renameBlobId)
+            }
+            className="absolute -bottom-2 -right-2 w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg"
+          >
+            <Trash2 size={14} />
+          </button>
+
           <form onSubmit={handleRenameSubmit} className="flex flex-col gap-2">
             <input
               type="text"
