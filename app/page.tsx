@@ -155,15 +155,25 @@ export default function BlobbyTrackerPage() {
   const handleCreateNewBall = () => {
     const newId = Date.now();
 
-    // Position new ball in the left green circle area
+    // Position new ball completely differently for desktop vs mobile
     const containerWidth =
       containerRef.current?.clientWidth || window.innerWidth;
     const containerHeight =
       containerRef.current?.clientHeight || window.innerHeight;
 
-    // Position in left quarter of screen (green circle area)
-    const newX = containerWidth / 4 - BALL_SIZE / 2;
-    const newY = containerHeight / 2 - BALL_SIZE / 2;
+    let newX: number;
+    let newY: number;
+
+    // Check if we're on mobile (width < 768px, matching Tailwind's md breakpoint)
+    if (containerWidth < 768) {
+      // Mobile: Position in the main blue card area (center of screen)
+      newX = containerWidth / 2 - BALL_SIZE / 2; // Center horizontally
+      newY = containerHeight / 2 - BALL_SIZE / 2; // Center vertically in the blue card
+    } else {
+      // Desktop: Position in left quarter of screen (green circle area)
+      newX = containerWidth / 4 - BALL_SIZE / 2;
+      newY = containerHeight / 2 - BALL_SIZE / 2;
+    }
 
     const newTask: Task = {
       id: newId,
@@ -295,22 +305,40 @@ export default function BlobbyTrackerPage() {
 
       {/* Dotted background pattern at the lowest z-index */}
       <div className="absolute inset-0 -z-20 w-full h-full bg-dot-pattern" />
-      {/* Background: 3 circles - green on left, blue in center, gray on right */}
+      {/* Background: Completely different layouts for desktop vs mobile */}
       <div className="pointer-events-none absolute inset-0 -z-10 w-full h-full">
-        {/* Green circle on the left (smaller, falling off the edge) */}
-        <div className="absolute left-0 top-1/2 w-[480px] h-[480px] rounded-full bg-zone-mint transform -translate-x-1/2 -translate-y-1/2" />
+        {/* Desktop: 3 circles - green on left, blue in center, gray on right */}
+        <div className="hidden md:block">
+          {/* Green circle on the left (smaller, falling off the edge) */}
+          <div className="absolute left-0 top-1/2 w-[480px] h-[480px] rounded-full bg-zone-mint transform -translate-x-1/2 -translate-y-1/2" />
 
-        {/* Blue circle in the center with darker core */}
-        <div className="absolute left-1/2 top-1/2 w-[625px] h-[625px] rounded-full bg-zone-sky transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
-          <div className="w-[312px] h-[312px] rounded-full bg-blue-400" />
+          {/* Blue circle in the center with darker core */}
+          <div className="absolute left-1/2 top-1/2 w-[625px] h-[625px] rounded-full bg-zone-sky transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+            <div className="w-[312px] h-[312px] rounded-full bg-blue-400" />
+          </div>
+
+          {/* Gray circle on the right (half visible) */}
+          <div className="absolute right-0 top-1/2 w-[480px] h-[480px] rounded-full bg-zone-gray transform translate-x-1/2 -translate-y-1/2" />
         </div>
 
-        {/* Gray circle on the right (half visible) */}
-        <div className="absolute right-0 top-1/2 w-[480px] h-[480px] rounded-full bg-zone-gray transform translate-x-1/2 -translate-y-1/2" />
+        {/* Mobile: Card-based layout with sections */}
+        <div className="block md:hidden">
+          {/* Header section - Green */}
+          <div className="absolute top-0 left-0 w-full h-32 bg-zone-mint rounded-b-3xl" />
+
+          {/* Main content area - Blue with rounded corners */}
+          <div className="absolute top-24 left-4 right-4 bottom-32 bg-zone-sky rounded-3xl shadow-lg" />
+
+          {/* Footer section - Gray */}
+          <div className="absolute bottom-0 left-0 w-full h-32 bg-zone-gray rounded-t-3xl" />
+        </div>
       </div>
 
-      {/* This is the main container where task balls live */}
-      <div ref={containerRef} className="relative w-full h-full">
+      {/* This is the main container where task balls live - Mobile optimized */}
+      <div
+        ref={containerRef}
+        className="relative w-full h-full md:w-full md:h-full"
+      >
         <AnimatePresence>
           {tasks.map((task) => (
             <TaskBlob
@@ -329,12 +357,12 @@ export default function BlobbyTrackerPage() {
         </AnimatePresence>
       </div>
 
-      {/* Circular Create New Button */}
-      <div className="absolute top-4 left-4 z-10">
+      {/* Circular Create New Button - Different positioning for mobile */}
+      <div className="absolute top-4 left-4 md:top-4 md:left-4 z-10">
         <button
           onClick={handleCreateNewBall}
           onContextMenu={handleCreateButtonContextMenu}
-          className="w-12 h-12 rounded-full bg-transparent hover:bg-gray-100 text-black border-2 border-black p-0 flex items-center justify-center cursor-pointer"
+          className="w-12 h-12 md:w-12 md:h-12 rounded-full bg-transparent hover:bg-gray-100 text-black border-2 border-black p-0 flex items-center justify-center cursor-pointer"
         >
           <Plus size={20} />
         </button>
@@ -361,13 +389,14 @@ export default function BlobbyTrackerPage() {
         </div>
       )}
 
-      {/* Create Button Rename Prompt */}
+      {/* Create Button Rename Prompt - Responsive positioning */}
       {showCreateRenamePrompt && (
         <div
-          className="absolute bg-gray-700 p-4 rounded-lg shadow-xl z-50"
+          className="absolute bg-gray-700 p-4 rounded-lg shadow-xl z-50 max-w-xs md:max-w-none"
           style={{
-            left: 80, // To the right of the button (button is 48px + 16px margin + 16px spacing)
-            top: 20, // Aligned with the button
+            left: window.innerWidth < 768 ? 16 : 80, // Mobile: left margin, Desktop: to the right of button
+            top: window.innerWidth < 768 ? 80 : 20, // Mobile: below button, Desktop: aligned with button
+            right: window.innerWidth < 768 ? 16 : "auto", // Mobile: right margin
           }}
         >
           <form
