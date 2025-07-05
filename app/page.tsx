@@ -19,6 +19,9 @@ type Task = {
   y: number; // Y position relative to container
 };
 
+// Define the context type
+type Context = "Home" | "Work";
+
 // Standard size for all balls
 const BALL_SIZE = 100;
 const MIN_BALL_SIZE = 80;
@@ -35,8 +38,8 @@ const BG_GRAY_DIM = "#E5E7EB"; // bottom gray
 // Black color for all circles
 const CIRCLE_COLOR = "#000000";
 
-// Default tasks
-const defaultTasks: Task[] = [
+// Default tasks for Home context
+const defaultHomeTasks: Task[] = [
   {
     id: 1,
     label: "Circle 1",
@@ -63,6 +66,9 @@ const defaultTasks: Task[] = [
   },
 ];
 
+// Default tasks for Work context (empty initially)
+const defaultWorkTasks: Task[] = [];
+
 // Helper to calculate circle size based on label length
 function getCircleSize(label: string) {
   const min = 80;
@@ -79,14 +85,33 @@ function getDynamicBallSize(label: string) {
 }
 
 export default function BlobbyTrackerPage() {
-  const [tasks, setTasks] = useState<Task[]>(defaultTasks);
+  const [currentContext, setCurrentContext] = useState<Context>("Home");
+  const [tasks, setTasks] = useState<Task[]>(defaultHomeTasks);
   const [isClient, setIsClient] = useState(false);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   // Load from localStorage after component mounts
   useEffect(() => {
     setIsClient(true);
-    const saved = localStorage.getItem("circles");
+    loadTasksForContext(currentContext);
+  }, []);
+
+  // Load tasks for the current context
+  const loadTasksForContext = (context: Context) => {
+    const storageKey = `circles-${context.toLowerCase()}`;
+    let saved = localStorage.getItem(storageKey);
+    
+    // Migration: If this is Home context and no data exists, check for old "circles" data
+    if (!saved && context === "Home") {
+      const oldData = localStorage.getItem("circles");
+      if (oldData) {
+        // Migrate old data to new format
+        localStorage.setItem(storageKey, oldData);
+        localStorage.removeItem("circles"); // Clean up old key
+        saved = oldData;
+      }
+    }
+    
     if (saved) {
       const parsedTasks = JSON.parse(saved);
       // Migrate any old blue circles to black
@@ -96,9 +121,31 @@ export default function BlobbyTrackerPage() {
       }));
       setTasks(migratedTasks);
       // Save the migrated tasks back to localStorage
-      localStorage.setItem("circles", JSON.stringify(migratedTasks));
+      localStorage.setItem(storageKey, JSON.stringify(migratedTasks));
+    } else {
+      // No saved tasks, use defaults
+      const defaultTasks = context === "Home" ? defaultHomeTasks : defaultWorkTasks;
+      setTasks(defaultTasks);
+      if (defaultTasks.length > 0) {
+        localStorage.setItem(storageKey, JSON.stringify(defaultTasks));
+      }
     }
-  }, []);
+  };
+
+  // Handle context switching
+  const handleContextSwitch = (newContext: Context) => {
+    if (newContext === currentContext) return;
+    
+    // Save current tasks before switching
+    saveToLocalStorage(tasks);
+    
+    // Switch context
+    setCurrentContext(newContext);
+    
+    // Load tasks for new context
+    loadTasksForContext(newContext);
+  };
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   // State for the rename prompt
@@ -131,7 +178,8 @@ export default function BlobbyTrackerPage() {
   // Save to localStorage whenever tasks change
   const saveToLocalStorage = (newTasks: Task[]) => {
     if (isClient) {
-      localStorage.setItem("circles", JSON.stringify(newTasks));
+      const storageKey = `circles-${currentContext.toLowerCase()}`;
+      localStorage.setItem(storageKey, JSON.stringify(newTasks));
     }
   };
 
@@ -300,6 +348,32 @@ export default function BlobbyTrackerPage() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden">
+      {/* Context Toggle - Home/Work */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
+        <div className="flex bg-white/20 backdrop-blur-sm rounded-full p-1 shadow-lg">
+          <button
+            onClick={() => handleContextSwitch("Home")}
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+              currentContext === "Home"
+                ? "bg-white text-gray-800 shadow-sm"
+                : "text-white/80 hover:text-white"
+            }`}
+          >
+            Home
+          </button>
+          <button
+            onClick={() => handleContextSwitch("Work")}
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+              currentContext === "Work"
+                ? "bg-white text-gray-800 shadow-sm"
+                : "text-white/80 hover:text-white"
+            }`}
+          >
+            Work
+          </button>
+        </div>
+      </div>
+
       {/* Gooey filter for blob effects */}
       <GooeyFilter />
 
