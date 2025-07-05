@@ -74,3 +74,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+.bg-dot-pattern {
+  background-color: white;
+  background-image: radial-gradient(#d1d5db 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}

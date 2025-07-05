@@ -95,7 +95,7 @@ export default function TaskBlob({
       {/* The label is inside the blob, so it will be slightly affected by the filter.
           For a "Sunday project" this is acceptable as per your notes. */}
       <span
-        className="text-white font-semibold text-xs md:text-sm text-center p-2 break-words pointer-events-none drop-shadow"
+        className="text-white font-chewy text-base md:text-lg text-center p-2 break-words pointer-events-none drop-shadow leading-tight max-w-xs"
         style={{ textShadow: "0 1px 2px rgba(0,0,0,0.25)" }}
       >
         {label}

@@ -19,7 +19,9 @@ type Task = {
 };
 
 // Standard size for all balls
-const BALL_SIZE = 80;
+const BALL_SIZE = 100;
+const MIN_BALL_SIZE = 80;
+const MAX_BALL_SIZE = 200;
 
 // Prettier pastel colors for background stripes
 const BG_MINT = "#6EE7B7"; // top green
@@ -29,8 +31,8 @@ const BG_SKY_DIM = "#93C5FD"; // bottom blue
 const BG_GRAY = "#9CA3AF"; // top gray
 const BG_GRAY_DIM = "#E5E7EB"; // bottom gray
 
-// Blue color for all circles
-const CIRCLE_COLOR = "#3b82f6";
+// Black color for all circles
+const CIRCLE_COLOR = "#000000";
 
 // Default tasks
 const defaultTasks: Task[] = [
@@ -60,6 +62,21 @@ const defaultTasks: Task[] = [
   },
 ];
 
+// Helper to calculate circle size based on label length
+function getCircleSize(label: string) {
+  const min = 80;
+  const perChar = 14; // px per character
+  return Math.max(min, label.length * perChar);
+}
+
+function getDynamicBallSize(label: string) {
+  // Base size plus 10px per character, clamped between min and max
+  return Math.max(
+    MIN_BALL_SIZE,
+    Math.min(MAX_BALL_SIZE, MIN_BALL_SIZE + (label.length - 6) * 10)
+  );
+}
+
 export default function BlobbyTrackerPage() {
   const [tasks, setTasks] = useState<Task[]>(defaultTasks);
   const [isClient, setIsClient] = useState(false);
@@ -70,7 +87,15 @@ export default function BlobbyTrackerPage() {
     setIsClient(true);
     const saved = localStorage.getItem("circles");
     if (saved) {
-      setTasks(JSON.parse(saved));
+      const parsedTasks = JSON.parse(saved);
+      // Migrate any old blue circles to black
+      const migratedTasks = parsedTasks.map((task: Task) => ({
+        ...task,
+        color: "#000000", // Force all circles to be black
+      }));
+      setTasks(migratedTasks);
+      // Save the migrated tasks back to localStorage
+      localStorage.setItem("circles", JSON.stringify(migratedTasks));
     }
   }, []);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -190,42 +215,21 @@ export default function BlobbyTrackerPage() {
   }, [showRenamePrompt]);
 
   return (
-    <div className="relative w-screen h-screen bg-gray-900/80 overflow-hidden">
-      {/* Background: 3 vertical stripes, each split horizontally for 6 zones */}
-      <div className="pointer-events-none absolute inset-0 -z-10 w-full h-full flex">
-        {/* Mint stripe */}
-        <div className="relative w-1/3 h-full">
-          <div
-            className="absolute top-0 left-0 w-full h-1/2"
-            style={{ background: BG_MINT }}
-          />
-          <div
-            className="absolute bottom-0 left-0 w-full h-1/2"
-            style={{ background: BG_MINT_DIM }}
-          />
+    <div className="relative w-screen h-screen overflow-hidden">
+      {/* Dotted background pattern at the lowest z-index */}
+      <div className="absolute inset-0 -z-20 w-full h-full bg-dot-pattern" />
+      {/* Background: 3 circles - green on left, blue in center, gray on right */}
+      <div className="pointer-events-none absolute inset-0 -z-10 w-full h-full">
+        {/* Green circle on the left (smaller, falling off the edge) */}
+        <div className="absolute left-0 top-1/2 w-[480px] h-[480px] rounded-full bg-zone-mint transform -translate-x-1/2 -translate-y-1/2" />
+
+        {/* Blue circle in the center with darker core */}
+        <div className="absolute left-1/2 top-1/2 w-[625px] h-[625px] rounded-full bg-zone-sky transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+          <div className="w-[312px] h-[312px] rounded-full bg-blue-400" />
         </div>
-        {/* Sky blue stripe */}
-        <div className="relative w-1/3 h-full">
-          <div
-            className="absolute top-0 left-0 w-full h-1/2"
-            style={{ background: BG_SKY }}
-          />
-          <div
-            className="absolute bottom-0 left-0 w-full h-1/2"
-            style={{ background: BG_SKY_DIM }}
-          />
-        </div>
-        {/* Light gray stripe */}
-        <div className="relative w-1/3 h-full">
-          <div
-            className="absolute top-0 left-0 w-full h-1/2"
-            style={{ background: BG_GRAY }}
-          />
-          <div
-            className="absolute bottom-0 left-0 w-full h-1/2"
-            style={{ background: BG_GRAY_DIM }}
-          />
-        </div>
+
+        {/* Gray circle on the right (half visible) */}
+        <div className="absolute right-0 top-1/2 w-[480px] h-[480px] rounded-full bg-zone-gray transform translate-x-1/2 -translate-y-1/2" />
       </div>
 
       {/* This is the main container where task balls live */}
@@ -236,7 +240,7 @@ export default function BlobbyTrackerPage() {
               key={task.id}
               id={task.id}
               label={task.label}
-              size={task.size}
+              size={BALL_SIZE}
               color={task.color}
               initialPosition={{ x: task.x, y: task.y }}
               dragConstraintsRef={containerRef}
