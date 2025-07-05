@@ -356,8 +356,8 @@ export default function BlobbyTrackerPage() {
             onClick={() => handleContextSwitch("Home")}
             className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
               currentContext === "Home"
-                ? "bg-white text-gray-800 shadow-sm"
-                : "text-white/80 hover:text-white"
+                ? "bg-white text-gray-800"
+                : " text-gray-300 hover:text-gray-500 hover:bg-gray-100/50"
             }`}
           >
             Home
@@ -366,8 +366,8 @@ export default function BlobbyTrackerPage() {
             onClick={() => handleContextSwitch("Work")}
             className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
               currentContext === "Work"
-                ? "bg-white text-gray-800 shadow-sm"
-                : "text-white/80 hover:text-white"
+                ? "bg-white text-gray-800"
+                : " text-gray-300 hover:text-gray-500 hover:bg-gray-100/50"
             }`}
           >
             Work
