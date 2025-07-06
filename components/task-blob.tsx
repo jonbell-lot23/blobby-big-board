@@ -4,6 +4,7 @@ import type React from "react";
 import { motion, useMotionValue, type PanInfo } from "framer-motion";
 import type { RefObject } from "react";
 import { Trash2, Edit3 } from "lucide-react";
+import { hyphenateText } from "@/lib/utils";
 
 type TaskBlobProps = {
   id: number;
@@ -129,7 +130,7 @@ export default function TaskBlob({
         className="text-white font-chewy text-base md:text-lg text-center p-2 break-words pointer-events-none drop-shadow leading-tight max-w-xs"
         style={{ textShadow: "0 1px 2px rgba(0,0,0,0.25)" }}
       >
-        {label}
+        {hyphenateText(label)}
       </span>
     </motion.div>
   );

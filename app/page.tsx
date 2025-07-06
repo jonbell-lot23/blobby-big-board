@@ -8,6 +8,7 @@ import TaskBlob from "@/components/task-blob";
 import GooeyFilter from "@/components/gooey-filter";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
+import { hyphenateText } from "@/lib/utils";
 
 // Define the type for a single task
 type Task = {
@@ -438,7 +439,9 @@ export default function BlobbyTrackerPage() {
                     key={task.id}
                     className="bg-black text-white p-3 rounded-lg flex items-center justify-between"
                   >
-                    <span className="font-chewy text-lg">{task.label}</span>
+                    <span className="font-chewy text-lg">
+                      {hyphenateText(task.label)}
+                    </span>
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
@@ -474,7 +477,9 @@ export default function BlobbyTrackerPage() {
                     key={task.id}
                     className="bg-black text-white p-3 rounded-lg flex items-center justify-between"
                   >
-                    <span className="font-chewy text-lg">{task.label}</span>
+                    <span className="font-chewy text-lg">
+                      {hyphenateText(task.label)}
+                    </span>
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
@@ -510,7 +515,9 @@ export default function BlobbyTrackerPage() {
                     key={task.id}
                     className="bg-black text-white p-3 rounded-lg flex items-center justify-between"
                   >
-                    <span className="font-chewy text-lg">{task.label}</span>
+                    <span className="font-chewy text-lg">
+                      {hyphenateText(task.label)}
+                    </span>
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
@@ -546,7 +553,9 @@ export default function BlobbyTrackerPage() {
                     key={task.id}
                     className="bg-black text-white p-3 rounded-lg flex items-center justify-between"
                   >
-                    <span className="font-chewy text-lg">{task.label}</span>
+                    <span className="font-chewy text-lg">
+                      {hyphenateText(task.label)}
+                    </span>
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
