@@ -127,8 +127,8 @@ export default function TaskBlob({
       {/* The label is inside the blob, so it will be slightly affected by the filter.
           For a "Sunday project" this is acceptable as per your notes. */}
       <span
-        className="text-white font-chewy text-base md:text-lg text-center p-2 break-words pointer-events-none drop-shadow leading-tight max-w-xs"
-        style={{ textShadow: "0 1px 2px rgba(0,0,0,0.25)" }}
+        className="text-white font-chewy text-base md:text-lg text-center p-2 break-words pointer-events-none drop-shadow leading-none max-w-xs"
+        style={{ textShadow: "0 1px 2px rgba(0,0,0,0.25)", lineHeight: "1rem" }}
       >
         {hyphenateText(label)}
       </span>
