@@ -89,8 +89,6 @@ export default function TaskBlob({
       animate={{
         scale: 1,
         opacity: 1,
-        x: initialPosition.x,
-        y: initialPosition.y,
       }}
       exit={{ scale: 0, opacity: 0 }}
       transition={{ type: "spring", stiffness: 260, damping: 20 }}
