@@ -36,7 +36,12 @@ export default function TaskBlob({
   onDragEnd,
   onRenameRequest,
   onDeleteRequest,
-}: TaskBlobProps) {
+  isEditMode = false,
+  onEditModeChange,
+}: TaskBlobProps & {
+  isEditMode?: boolean;
+  onEditModeChange?: (active: boolean) => void;
+}) {
   // These motion values track the blob's position, allowing Framer Motion to control transforms.
   const x = useMotionValue(initialPosition.x);
   const y = useMotionValue(initialPosition.y);
@@ -49,6 +54,11 @@ export default function TaskBlob({
     x: number;
     y: number;
   } | null>(null);
+
+  // State for delayed hover icons
+  const [showIcons, setShowIcons] = useState(false);
+  const hoverTimeout = useRef<NodeJS.Timeout | null>(null);
+  const hoverCount = useRef(0);
 
   useEffect(() => {
     if (dragConstraintsRef.current) {
@@ -125,6 +135,21 @@ export default function TaskBlob({
     onDeleteRequest(id);
   };
 
+  const handleAnyMouseEnter = () => {
+    hoverCount.current += 1;
+    if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
+    setShowIcons(true);
+  };
+  const handleAnyMouseLeave = () => {
+    hoverCount.current -= 1;
+    if (hoverCount.current <= 0) {
+      hoverTimeout.current = setTimeout(() => {
+        setShowIcons(false);
+        hoverCount.current = 0;
+      }, 100);
+    }
+  };
+
   // Helper to split long single words into lines of 6 chars with hyphens
   function splitLongWord(
     text: string,
@@ -180,19 +205,39 @@ export default function TaskBlob({
         x,
         y,
       }}
+      onMouseEnter={handleAnyMouseEnter}
+      onMouseLeave={handleAnyMouseLeave}
     >
-      {/* Edit button - appears on hover */}
+      {/* Edit button - appears on hover after 0.2s, stays visible if hovered */}
       <button
         onClick={handleEditClick}
-        className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        onMouseEnter={handleAnyMouseEnter}
+        onMouseLeave={handleAnyMouseLeave}
+        className={`absolute -top-2 -right-2 w-6 h-6 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white transition-opacity z-10 ${
+          showIcons
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        }`}
+        style={{ transitionDelay: showIcons ? "0s" : "0s" }}
+        tabIndex={showIcons ? 0 : -1}
+        aria-hidden={!showIcons}
       >
         <Edit3 size={12} />
       </button>
 
-      {/* Delete button - appears on hover */}
+      {/* Delete button - appears on hover after 0.2s, stays visible if hovered */}
       <button
         onClick={handleDeleteClick}
-        className="absolute -top-2 -left-2 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        onMouseEnter={handleAnyMouseEnter}
+        onMouseLeave={handleAnyMouseLeave}
+        className={`absolute -top-2 -left-2 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white transition-opacity z-10 ${
+          showIcons
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        }`}
+        style={{ transitionDelay: showIcons ? "0s" : "0s" }}
+        tabIndex={showIcons ? 0 : -1}
+        aria-hidden={!showIcons}
       >
         <Trash2 size={12} />
       </button>

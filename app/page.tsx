@@ -167,7 +167,7 @@ export default function BlobbyTrackerPage() {
 
   // State for create button rename prompt
   const [showCreateRenamePrompt, setShowCreateRenamePrompt] = useState(false);
-  const [createRenameLabel, setCreateRenameLabel] = useState("Project");
+  const [createRenameLabel, setCreateRenameLabel] = useState("Project Name");
   const [pendingNewTask, setPendingNewTask] = useState<Task | null>(null);
 
   // State for create button context menu
@@ -214,8 +214,15 @@ export default function BlobbyTrackerPage() {
     let newX: number;
     let newY: number;
 
-    // Check if we're on mobile (width < 768px, matching Tailwind's md breakpoint)
-    if (containerWidth < 768) {
+    if (tasks.length > 0) {
+      // Place 40px over and down from the last task
+      const lastTask = tasks[tasks.length - 1];
+      newX = lastTask.x + 40;
+      newY = lastTask.y + 40;
+      // Keep within bounds
+      newX = Math.min(newX, containerWidth - BALL_SIZE);
+      newY = Math.min(newY, containerHeight - BALL_SIZE);
+    } else if (containerWidth < 768) {
       // Mobile: Position in the main blue card area (center of screen)
       newX = containerWidth / 2 - BALL_SIZE / 2; // Center horizontally
       newY = containerHeight / 2 - BALL_SIZE / 2; // Center vertically in the blue card
@@ -227,7 +234,7 @@ export default function BlobbyTrackerPage() {
 
     const newTask: Task = {
       id: newId,
-      label: "Project",
+      label: "Project Name",
       size: BALL_SIZE,
       color: CIRCLE_COLOR,
       x: newX,
@@ -236,7 +243,7 @@ export default function BlobbyTrackerPage() {
 
     // Store the pending task and show rename prompt
     setPendingNewTask(newTask);
-    setCreateRenameLabel("Project");
+    setCreateRenameLabel("Project Name");
     setShowCreateRenamePrompt(true);
   };
 
@@ -258,14 +265,14 @@ export default function BlobbyTrackerPage() {
     }
     setShowCreateRenamePrompt(false);
     setPendingNewTask(null);
-    setCreateRenameLabel("Project");
+    setCreateRenameLabel("Project Name");
   };
 
   // Handle create rename cancel
   const handleCreateRenameCancel = () => {
     setShowCreateRenamePrompt(false);
     setPendingNewTask(null);
-    setCreateRenameLabel("Project");
+    setCreateRenameLabel("Project Name");
   };
 
   // Handle deleting a task
@@ -347,6 +354,23 @@ export default function BlobbyTrackerPage() {
       renameBlobPosition
     );
   }, [showRenamePrompt, renameBlobPosition]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.key === "n" || e.key === "N") &&
+        !e.repeat &&
+        document.activeElement &&
+        document.activeElement.tagName !== "INPUT" &&
+        document.activeElement.tagName !== "TEXTAREA"
+      ) {
+        e.preventDefault();
+        handleCreateNewBall();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleCreateNewBall]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden">
@@ -617,7 +641,7 @@ export default function BlobbyTrackerPage() {
       {/* Create Button Rename Prompt - Responsive positioning */}
       {showCreateRenamePrompt && (
         <div
-          className="absolute bg-gray-700 p-4 rounded-lg shadow-xl z-50 max-w-xs md:max-w-none"
+          className="absolute p-4 rounded-lg shadow-xl z-50 max-w-xs md:max-w-none border border-black bg-white text-black"
           style={{
             left: window.innerWidth < 768 ? 16 : 80, // Mobile: left margin, Desktop: to the right of button
             top: window.innerWidth < 768 ? 80 : 20, // Mobile: below button, Desktop: aligned with button
@@ -632,7 +656,7 @@ export default function BlobbyTrackerPage() {
               type="text"
               value={createRenameLabel}
               onChange={(e) => setCreateRenameLabel(e.target.value)}
-              className="p-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="p-2 rounded border border-black bg-white text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Project name"
               autoFocus
               onFocus={(e) => e.target.select()}
@@ -645,14 +669,14 @@ export default function BlobbyTrackerPage() {
             <div className="flex gap-2">
               <Button
                 type="submit"
-                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white border-0"
               >
                 Create
               </Button>
               <Button
                 type="button"
                 onClick={handleCreateRenameCancel}
-                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white"
+                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white border-0"
               >
                 Cancel
               </Button>
