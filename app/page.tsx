@@ -360,6 +360,7 @@ export default function BlobbyTrackerPage() {
       if (
         (e.key === "n" || e.key === "N") &&
         !e.repeat &&
+        !e.metaKey && // Ignore if command key is held
         document.activeElement &&
         document.activeElement.tagName !== "INPUT" &&
         document.activeElement.tagName !== "TEXTAREA"
