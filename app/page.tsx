@@ -53,32 +53,35 @@ export default function CloudBlobbyTrackerPage() {
   // Initialize user and load data
   useEffect(() => {
     async function initializeUser() {
-      if (!authLoaded || !isSignedIn || !user) return;
+      if (!authLoaded) return;
 
       try {
         setIsLoading(true);
         setError(null);
 
-        // Ensure user exists in database
-        await storage.ensureUser(
-          user.username || user.firstName || 'user',
-          user.primaryEmailAddress?.emailAddress || ''
-        );
+        // Only initialize database if signed in
+        if (isSignedIn && user) {
+          // Ensure user exists in database
+          await storage.ensureUser(
+            user.username || user.firstName || 'user',
+            user.primaryEmailAddress?.emailAddress || ''
+          );
 
-        // Load boards
-        const userBoards = await storage.getBoards();
-        setBoards(userBoards);
+          // Load boards
+          const userBoards = await storage.getBoards();
+          setBoards(userBoards);
 
-        // Set current board
-        const homeBoard = userBoards.find(b => b.name === currentContext);
-        if (homeBoard) {
-          setCurrentBoard(homeBoard);
-          setTasks(homeBoard.tasks);
-        }
+          // Set current board
+          const homeBoard = userBoards.find(b => b.name === currentContext);
+          if (homeBoard) {
+            setCurrentBoard(homeBoard);
+            setTasks(homeBoard.tasks);
+          }
 
-        // Check for local storage data to migrate
-        if (DataMigration.hasLocalStorageData()) {
-          setShowMigrationPrompt(true);
+          // Check for local storage data to migrate
+          if (DataMigration.hasLocalStorageData()) {
+            setShowMigrationPrompt(true);
+          }
         }
       } catch (err) {
         console.error('Error initializing user:', err);
