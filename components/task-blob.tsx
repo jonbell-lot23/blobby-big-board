@@ -81,7 +81,7 @@ export default function TaskBlob({
     };
     window.addEventListener("resize", updatePosition);
     return () => window.removeEventListener("resize", updatePosition);
-  }, [dragConstraintsRef, positionRatio]);
+  }, [dragConstraintsRef, positionRatio, x, y]);
 
   useEffect(() => {
     const checkOverflow = () => {

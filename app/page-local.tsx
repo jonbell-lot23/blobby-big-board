@@ -450,9 +450,9 @@ export default function BlobbyTrackerPage() {
               color={task.color}
               initialPosition={{ x: task.x, y: task.y }}
               dragConstraintsRef={containerRef}
-              onDragEnd={handleDragEnd}
-              onRenameRequest={handleRenameRequest}
-              onDeleteRequest={handleDeleteTask}
+              onDragEnd={(id, x, y) => handleDragEnd(Number(id), x, y)}
+              onRenameRequest={(id, currentLabel, position) => handleRenameRequest(Number(id), currentLabel, position)}
+              onDeleteRequest={(id) => handleDeleteTask(Number(id))}
             />
           ))}
         </AnimatePresence>

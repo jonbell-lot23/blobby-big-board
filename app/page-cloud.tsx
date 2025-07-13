@@ -352,8 +352,8 @@ export default function CloudBlobbyTrackerPage() {
               initialPosition={{ x: task.x, y: task.y }}
               dragConstraintsRef={containerRef}
               onDragEnd={(id, x, y) => handleDragEnd(String(id), x, y)}
-              onRenameRequest={handleRenameRequest}
-              onDeleteRequest={handleDeleteTask}
+              onRenameRequest={(id, currentLabel, position) => handleRenameRequest(String(id), currentLabel, position)}
+              onDeleteRequest={(id) => handleDeleteTask(String(id))}
             />
           ))}
         </AnimatePresence>
