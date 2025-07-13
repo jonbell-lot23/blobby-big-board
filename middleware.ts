@@ -1,16 +1,10 @@
-// Temporarily disabled middleware to debug
-// import { authMiddleware } from "@clerk/nextjs";
+import { authMiddleware } from "@clerk/nextjs";
 
-// export default authMiddleware({
-//   publicRoutes: ["/", "/sign-in", "/sign-up", "/api/(.*)"],
-//   ignoredRoutes: ["/_next/(.*)", "/favicon.ico"]
-// });
+export default authMiddleware({
+  publicRoutes: ["/", "/sign-in", "/sign-up"],
+  ignoredRoutes: ["/((?!api|trpc))(_next.*|.+\\.[\\w]+$)"]
+});
 
-// export const config = {
-//   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)', '/'],
-// };
-
-export default function middleware() {
-  // No-op middleware for debugging
-  return;
-}
+export const config = {
+  matcher: ['/((?!.*\\..*|_next).*)', '/', '/(api|trpc)(.*)'],
+};
