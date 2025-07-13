@@ -4,7 +4,6 @@ import type React from "react";
 
 import { useState, useRef, useEffect, type MouseEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useAuth, useUser, SignInButton } from "@clerk/nextjs";
 import TaskBlob from "@/components/task-blob";
 import GooeyFilter from "@/components/gooey-filter";
 import { Button } from "@/components/ui/button";
@@ -87,9 +86,6 @@ function getDynamicBallSize(label: string) {
 }
 
 export default function BlobbyTrackerPage() {
-  const { isLoaded: authLoaded, userId, isSignedIn } = useAuth();
-  const { user } = useUser();
-  
   const [currentContext, setCurrentContext] = useState<Context>("Home");
   const [tasks, setTasks] = useState<Task[]>(defaultHomeTasks);
   const [isClient, setIsClient] = useState(false);
@@ -387,18 +383,6 @@ export default function BlobbyTrackerPage() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden">
-      {/* Sign In Button - Top Right */}
-      {authLoaded && !isSignedIn && (
-        <div className="absolute top-4 right-4 z-50">
-          <SignInButton mode="modal">
-            <Button className="bg-black hover:bg-gray-800 text-white font-medium px-4 py-2">
-              Sign up or log in
-            </Button>
-          </SignInButton>
-        </div>
-      )}
-
-
       {/* Context Toggle - Home/Work */}
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20">
         <div className="flex bg-white/20 backdrop-blur-sm rounded-full p-1 shadow-lg">

@@ -7,19 +7,19 @@ import { Trash2, Edit3 } from "lucide-react";
 import { hyphenateText } from "@/lib/utils";
 
 type TaskBlobProps = {
-  id: number;
+  id: string | number;
   label: string;
   size: number;
   color: string;
   initialPosition: { x: number; y: number };
   dragConstraintsRef: RefObject<HTMLElement>;
-  onDragEnd: (id: number, newX: number, newY: number) => void;
+  onDragEnd: (id: string | number, newX: number, newY: number) => void;
   onRenameRequest: (
-    id: number,
+    id: string | number,
     currentLabel: string,
     position: { x: number; y: number }
   ) => void;
-  onDeleteRequest: (id: number) => void;
+  onDeleteRequest: (id: string | number) => void;
 };
 
 /**

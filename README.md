@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Blobby Big Board - Cloud Edition
 
-## Getting Started
+A fun, gooey project tracker with cloud sync, built with Next.js, Framer Motion, Supabase, and Clerk authentication.
 
-First, run the development server:
+## Features
 
+- 🔐 **User Authentication** - Google OAuth via Clerk
+- ☁️ **Cloud Storage** - PostgreSQL database via Supabase
+- 🔄 **Real-time Sync** - Access your boards from any device
+- 🏠 **Home/Work Contexts** - Separate boards for different areas
+- 📱 **Responsive Design** - Works on desktop and mobile
+- 🚀 **Automatic Migration** - Import existing localStorage data
+
+## Quick Setup
+
+### 1. Install Dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env.local` and fill in your credentials:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+### 3. Supabase Setup
+- Create a new Supabase project
+- Copy the PostgreSQL connection strings to your `.env.local`
+- The database schema will be created automatically
 
-## Learn More
+### 4. Clerk Authentication Setup
+- Create a Clerk application
+- Enable Google OAuth provider
+- Copy the Clerk keys to your `.env.local`
 
-To learn more about Next.js, take a look at the following resources:
+### 5. Database Setup
+```bash
+bunx prisma generate
+bunx prisma db push
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 6. Run Development Server
+```bash
+bun run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+## Database Schema
 
-## Deploy on Vercel
+```prisma
+model User {
+  id        String   @id // Clerk user ID
+  username  String   @unique
+  email     String   @unique
+  boards    Board[]
+}
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+model Board {
+  id     String @id @default(cuid())
+  userId String
+  name   String // "Home" or "Work"
+  user   User   @relation(fields: [userId], references: [id])
+  tasks  Task[]
+}
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+model Task {
+  id      String @id @default(cuid())
+  boardId String
+  label   String
+  x       Float
+  y       Float
+  size    Float  @default(100)
+  board   Board  @relation(fields: [boardId], references: [id])
+}
+```
+
+## Migration from Local Storage
+
+If you have existing tasks in localStorage, the app will automatically prompt you to migrate them to cloud storage on first login.
+
+## Tech Stack
+
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Database**: PostgreSQL (Supabase)
+- **ORM**: Prisma
+- **Authentication**: Clerk + Google OAuth
+- **Styling**: Tailwind CSS
+- **Animation**: Framer Motion
+- **Runtime**: Bun
+
+## Development
+
+```bash
+# Install dependencies
+bun install
+
+# Run development server
+bun run dev
+
+# Build for production
+bun run build
+
+# Start production server
+bun run start
+
+# Database operations
+bunx prisma studio      # Database browser
+bunx prisma db push     # Push schema changes
+bunx prisma generate    # Generate Prisma client
+```
