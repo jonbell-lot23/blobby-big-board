@@ -22,7 +22,7 @@ const chewy = Chewy({
 });
 
 export const metadata: Metadata = {
-  title: "Blobby Project Tracker",
+  title: "Wait, What Am I Doing?",
   description:
     "A fun, gooey project tracker built with Next.js and Framer Motion.",
 };

@@ -351,7 +351,7 @@ export default function CloudBlobbyTrackerPage() {
               color="#000000"
               initialPosition={{ x: task.x, y: task.y }}
               dragConstraintsRef={containerRef}
-              onDragEnd={(id, x, y) => handleDragEnd(id, x, y)}
+              onDragEnd={(id, x, y) => handleDragEnd(String(id), x, y)}
               onRenameRequest={handleRenameRequest}
               onDeleteRequest={handleDeleteTask}
             />
