@@ -23,6 +23,7 @@ export default function CloudBlobbyTrackerPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [boards, setBoards] = useState<Board[]>([]);
   const [currentBoard, setCurrentBoard] = useState<Board | null>(null);
+  const [allBoardTasks, setAllBoardTasks] = useState<Record<string, Task[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -71,6 +72,13 @@ export default function CloudBlobbyTrackerPage() {
           const userBoards = await storage.getBoards();
           setBoards(userBoards);
 
+          // Preload tasks for ALL boards for instant switching
+          const boardTasksMap: Record<string, Task[]> = {};
+          for (const board of userBoards) {
+            boardTasksMap[board.id] = board.tasks;
+          }
+          setAllBoardTasks(boardTasksMap);
+
           // Set current board
           const homeBoard = userBoards.find(b => b.name === currentContext);
           if (homeBoard) {
@@ -94,32 +102,46 @@ export default function CloudBlobbyTrackerPage() {
     initializeUser();
   }, [authLoaded, isSignedIn, user, currentContext]);
 
-  // Handle context switching
-  const handleContextSwitch = async (newContext: Context) => {
+  // Handle context switching - instant with preloaded data
+  const handleContextSwitch = (newContext: Context) => {
     if (newContext === currentContext) return;
 
-    try {
-      setCurrentContext(newContext);
-      const board = boards.find(b => b.name === newContext);
-      if (board) {
-        setCurrentBoard(board);
-        setTasks(board.tasks);
-      }
-    } catch (err) {
-      console.error('Error switching context:', err);
-      setError('Failed to switch context');
+    // Instant switch using preloaded data
+    setCurrentContext(newContext);
+    const board = boards.find(b => b.name === newContext);
+    if (board) {
+      setCurrentBoard(board);
+      const preloadedTasks = allBoardTasks[board.id] || [];
+      setTasks(preloadedTasks);
     }
   };
 
-  // Handle drag end
+  // Handle drag end with optimistic update
   const handleDragEnd = async (id: string, newX: number, newY: number) => {
+    // Optimistically update UI immediately
+    setTasks(prev => prev.map(task => 
+      task.id === id ? { ...task, x: newX, y: newY } : task
+    ));
+    
+    // Update preloaded cache
+    if (currentBoard) {
+      setAllBoardTasks(prev => ({
+        ...prev,
+        [currentBoard.id]: prev[currentBoard.id]?.map(task => 
+          task.id === id ? { ...task, x: newX, y: newY } : task
+        ) || []
+      }));
+    }
+
+    // Save to database in background
     try {
-      const updatedTask = await storage.updateTask(id, { x: newX, y: newY });
-      setTasks(prev => prev.map(task => 
-        task.id === id ? { ...task, x: newX, y: newY } : task
-      ));
+      await storage.updateTask(id, { x: newX, y: newY });
     } catch (err) {
       console.error('Error updating task position:', err);
+      // Revert optimistic update on error
+      setTasks(prev => prev.map(task => 
+        task.id === id ? { ...task, x: task.x, y: task.y } : task
+      ));
       setError('Failed to save position');
     }
   };
@@ -160,39 +182,92 @@ export default function CloudBlobbyTrackerPage() {
     setShowCreateRenamePrompt(true);
   };
 
-  // Handle create rename submit
+  // Handle create rename submit with optimistic update
   const handleCreateRenameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pendingNewTask || !currentBoard) return;
 
+    const finalTask = { ...pendingNewTask, label: createRenameLabel };
+    
+    // Generate temporary ID for optimistic update
+    const tempId = `temp-${Date.now()}`;
+    const optimisticTask = { ...finalTask, id: tempId };
+    
+    // Optimistically add task immediately
+    setTasks(prev => [...prev, optimisticTask]);
+    
+    // Update preloaded cache
+    setAllBoardTasks(prev => ({
+      ...prev,
+      [currentBoard.id]: [...(prev[currentBoard.id] || []), optimisticTask]
+    }));
+    
+    // Close dialog immediately
+    setShowCreateRenamePrompt(false);
+    setPendingNewTask(null);
+    setCreateRenameLabel("Project Name");
+
+    // Save to database in background
     try {
-      setIsCreatingNew(true);
-      const finalTask = { ...pendingNewTask, label: createRenameLabel };
       const createdTask = await storage.createTask(currentBoard.id, finalTask);
-      setTasks(prev => [...prev, createdTask]);
       
-      setShowCreateRenamePrompt(false);
-      setPendingNewTask(null);
-      setCreateRenameLabel("Project Name");
+      // Replace temporary task with real task
+      setTasks(prev => prev.map(task => 
+        task.id === tempId ? createdTask : task
+      ));
+      setAllBoardTasks(prev => ({
+        ...prev,
+        [currentBoard.id]: prev[currentBoard.id]?.map(task => 
+          task.id === tempId ? createdTask : task
+        ) || []
+      }));
     } catch (err) {
       console.error('Error creating task:', err);
+      // Remove optimistic task on error
+      setTasks(prev => prev.filter(task => task.id !== tempId));
+      setAllBoardTasks(prev => ({
+        ...prev,
+        [currentBoard.id]: prev[currentBoard.id]?.filter(task => task.id !== tempId) || []
+      }));
       setError('Failed to create task');
-    } finally {
-      setIsCreatingNew(false);
     }
   };
 
-  // Handle delete task
+  // Handle delete task with optimistic update
   const handleDeleteTask = async (id: string) => {
+    // Store task for potential rollback
+    const taskToDelete = tasks.find(task => task.id === id);
+    
+    // Optimistically remove task immediately
+    setTasks(prev => prev.filter(task => task.id !== id));
+    
+    // Update preloaded cache
+    if (currentBoard) {
+      setAllBoardTasks(prev => ({
+        ...prev,
+        [currentBoard.id]: prev[currentBoard.id]?.filter(task => task.id !== id) || []
+      }));
+    }
+    
+    // Close rename dialog
+    setShowRenamePrompt(false);
+    setRenameBlobId(null);
+    setRenameBlobLabel("");
+    setRenameBlobPosition(null);
+
+    // Delete from database in background
     try {
       await storage.deleteTask(id);
-      setTasks(prev => prev.filter(task => task.id !== id));
-      setShowRenamePrompt(false);
-      setRenameBlobId(null);
-      setRenameBlobLabel("");
-      setRenameBlobPosition(null);
     } catch (err) {
       console.error('Error deleting task:', err);
+      // Restore task on error
+      if (taskToDelete && currentBoard) {
+        setTasks(prev => [...prev, taskToDelete]);
+        setAllBoardTasks(prev => ({
+          ...prev,
+          [currentBoard.id]: [...(prev[currentBoard.id] || []), taskToDelete]
+        }));
+      }
       setError('Failed to delete task');
     }
   };
@@ -209,35 +284,87 @@ export default function CloudBlobbyTrackerPage() {
     setShowRenamePrompt(true);
   };
 
-  // Handle rename submit
+  // Handle rename submit with optimistic update
   const handleRenameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!renameBlobId) return;
 
+    // Store old label for potential rollback
+    const oldTask = tasks.find(task => task.id === renameBlobId);
+    const oldLabel = oldTask?.label || '';
+
+    // Optimistically update label immediately
+    setTasks(prev => prev.map(task =>
+      task.id === renameBlobId ? { ...task, label: renameBlobLabel } : task
+    ));
+    
+    // Update preloaded cache
+    if (currentBoard) {
+      setAllBoardTasks(prev => ({
+        ...prev,
+        [currentBoard.id]: prev[currentBoard.id]?.map(task => 
+          task.id === renameBlobId ? { ...task, label: renameBlobLabel } : task
+        ) || []
+      }));
+    }
+    
+    // Close dialog immediately
+    setShowRenamePrompt(false);
+    setRenameBlobId(null);
+    setRenameBlobLabel("");
+    setRenameBlobPosition(null);
+
+    // Save to database in background
     try {
       await storage.updateTask(renameBlobId, { label: renameBlobLabel });
-      setTasks(prev => prev.map(task =>
-        task.id === renameBlobId ? { ...task, label: renameBlobLabel } : task
-      ));
-      
-      setShowRenamePrompt(false);
-      setRenameBlobId(null);
-      setRenameBlobLabel("");
-      setRenameBlobPosition(null);
     } catch (err) {
       console.error('Error renaming task:', err);
+      // Revert optimistic update on error
+      setTasks(prev => prev.map(task =>
+        task.id === renameBlobId ? { ...task, label: oldLabel } : task
+      ));
+      if (currentBoard) {
+        setAllBoardTasks(prev => ({
+          ...prev,
+          [currentBoard.id]: prev[currentBoard.id]?.map(task => 
+            task.id === renameBlobId ? { ...task, label: oldLabel } : task
+          ) || []
+        }));
+      }
       setError('Failed to rename task');
     }
   };
 
-  // Handle clear all
+  // Handle clear all with optimistic update
   const handleClearAll = async () => {
+    // Store tasks for potential rollback
+    const tasksToDelete = [...tasks];
+    
+    // Optimistically clear immediately
+    setTasks([]);
+    setShowClearConfirm(false);
+    
+    // Update preloaded cache
+    if (currentBoard) {
+      setAllBoardTasks(prev => ({
+        ...prev,
+        [currentBoard.id]: []
+      }));
+    }
+
+    // Delete from database in background
     try {
-      await Promise.all(tasks.map(task => storage.deleteTask(task.id)));
-      setTasks([]);
-      setShowClearConfirm(false);
+      await Promise.all(tasksToDelete.map(task => storage.deleteTask(task.id)));
     } catch (err) {
       console.error('Error clearing tasks:', err);
+      // Restore tasks on error
+      setTasks(tasksToDelete);
+      if (currentBoard) {
+        setAllBoardTasks(prev => ({
+          ...prev,
+          [currentBoard.id]: tasksToDelete
+        }));
+      }
       setError('Failed to clear tasks');
     }
   };
