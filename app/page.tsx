@@ -19,7 +19,16 @@ export default function CloudBlobbyTrackerPage() {
   const { isLoaded: authLoaded, userId, isSignedIn } = useAuth();
   const { user } = useUser();
   
-  const [currentContext, setCurrentContext] = useState<Context>("Home");
+  const [currentContext, setCurrentContext] = useState<Context>(() => {
+    // Remember last tab from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('blobby-current-context');
+      if (saved === 'Home' || saved === 'Work') {
+        return saved;
+      }
+    }
+    return "Home";
+  });
   const [tasks, setTasks] = useState<Task[]>([]);
   const [boards, setBoards] = useState<Board[]>([]);
   const [currentBoard, setCurrentBoard] = useState<Board | null>(null);
@@ -50,6 +59,29 @@ export default function CloudBlobbyTrackerPage() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+
+  // Add keyboard shortcut for creating new tasks
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.key === "n" || e.key === "N") &&
+        !e.repeat &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        document.activeElement &&
+        document.activeElement.tagName !== "INPUT" &&
+        document.activeElement.tagName !== "TEXTAREA" &&
+        isSignedIn &&
+        currentBoard
+      ) {
+        e.preventDefault();
+        handleCreateNewBall();
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSignedIn, currentBoard]);
 
   // Initialize user and load data
   useEffect(() => {
@@ -106,6 +138,9 @@ export default function CloudBlobbyTrackerPage() {
   const handleContextSwitch = (newContext: Context) => {
     if (newContext === currentContext) return;
 
+    // Save tab selection to localStorage
+    localStorage.setItem('blobby-current-context', newContext);
+
     // Instant switch using preloaded data
     setCurrentContext(newContext);
     const board = boards.find(b => b.name === newContext);
@@ -133,20 +168,16 @@ export default function CloudBlobbyTrackerPage() {
       }));
     }
 
-    // Save to database in background
+    // Save to database in background - fail silently
     try {
       await storage.updateTask(id, { x: newX, y: newY });
     } catch (err) {
       console.error('Error updating task position:', err);
-      // Revert optimistic update on error
-      setTasks(prev => prev.map(task => 
-        task.id === id ? { ...task, x: task.x, y: task.y } : task
-      ));
-      setError('Failed to save position');
+      // Fail silently - user's drag already worked in the UI
     }
   };
 
-  // Handle creating new task
+  // Handle creating new task - show ball immediately
   const handleCreateNewBall = () => {
     if (!currentBoard) return;
 
@@ -177,6 +208,17 @@ export default function CloudBlobbyTrackerPage() {
       y: newY,
     };
 
+    // Generate temporary ID and show ball immediately
+    const tempId = `temp-${Date.now()}`;
+    const immediateTask = { ...newTask, id: tempId };
+    
+    // Show ball immediately
+    setTasks(prev => [...prev, immediateTask]);
+    setAllBoardTasks(prev => ({
+      ...prev,
+      [currentBoard.id]: [...(prev[currentBoard.id] || []), immediateTask]
+    }));
+
     setPendingNewTask(newTask);
     setCreateRenameLabel("Project Name");
     setShowCreateRenamePrompt(true);
@@ -189,17 +231,19 @@ export default function CloudBlobbyTrackerPage() {
 
     const finalTask = { ...pendingNewTask, label: createRenameLabel };
     
-    // Generate temporary ID for optimistic update
-    const tempId = `temp-${Date.now()}`;
-    const optimisticTask = { ...finalTask, id: tempId };
+    // Find the temp task that was already shown
+    const tempTask = tasks.find(task => task.id.startsWith('temp-') && task.label === 'Project Name');
+    const tempId = tempTask?.id || `temp-${Date.now()}`;
     
-    // Optimistically add task immediately
-    setTasks(prev => [...prev, optimisticTask]);
-    
-    // Update preloaded cache
+    // Update the existing temp task with the new label
+    setTasks(prev => prev.map(task => 
+      task.id === tempId ? { ...task, label: createRenameLabel } : task
+    ));
     setAllBoardTasks(prev => ({
       ...prev,
-      [currentBoard.id]: [...(prev[currentBoard.id] || []), optimisticTask]
+      [currentBoard.id]: prev[currentBoard.id]?.map(task => 
+        task.id === tempId ? { ...task, label: createRenameLabel } : task
+      ) || []
     }));
     
     // Close dialog immediately
@@ -583,6 +627,15 @@ export default function CloudBlobbyTrackerPage() {
               <Button
                 type="button"
                 onClick={() => {
+                  // Remove the temporary ball when canceling
+                  const tempTask = tasks.find(task => task.id.startsWith('temp-') && task.label === 'Project Name');
+                  if (tempTask && currentBoard) {
+                    setTasks(prev => prev.filter(task => task.id !== tempTask.id));
+                    setAllBoardTasks(prev => ({
+                      ...prev,
+                      [currentBoard.id]: prev[currentBoard.id]?.filter(task => task.id !== tempTask.id) || []
+                    }));
+                  }
                   setShowCreateRenamePrompt(false);
                   setPendingNewTask(null);
                 }}
